@@ -1,0 +1,14 @@
+#!/bin/bash
+
+case "$1" in
+	configure)
+		pip3 install python-libxdo
+	;;
+
+	abort-upgrade|abort-remove|abort-deconfigure)
+	;;
+
+	*)
+		exit 1
+	;;
+esac
