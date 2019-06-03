@@ -246,13 +246,19 @@ class DoType():
             print('{} not found'.format(name))
 
 
-def generate_password(name, pass_len, no_spec):
-    random_string = os.urandom(pass_len)
+def generate_password(args):
+    random_string = os.urandom(args.len)
     password = []
-    if no_spec:
-        chars_table = string.printable[0:62]
-    else:
-        chars_table = string.printable[:-5]  # we remove \t, \n, \r, \v, \f
+    tr, chars_table = {}, string.printable[:-5]  # we remove \t, \n, \r, \v, \f
+
+    if args.no_quot:
+        tr.update(str.maketrans('', '', "'\"`"))
+    elif args.no_spec:
+        tr.update(str.maketrans('', '', string.punctuation))
+    if args.no_space:
+        tr.update(str.maketrans('', '', ' '))
+
+    chars_table = chars_table.translate(tr)
     mod = len(chars_table)
     for c in random_string:
         password.append(chars_table[c % mod])
@@ -271,7 +277,7 @@ def main(args):
         if args.edit:
             passfile.edit()
         if args.generate:
-            password = generate_password(args.name, args.len, args.no_spec)
+            password = generate_password(args)
             print(password)
             #do = DoType("generated: '{}'".format(password), args.legacy)
             #do.execute('generated')
@@ -301,7 +307,9 @@ if __name__ == '__main__':
     parser.add_argument("-f", "--file", help="Path of the password file to use (in YAML format)", default='~/.passfile.yml.enc')
     parser.add_argument("-g", "--generate", help="Generate a password", action='store_true')
     parser.add_argument("--len", help="Length of a generated password (default 64)", default=64, type=int)
-    parser.add_argument("--no-spec", help="No special chars in the generated password (base64)", default=False, action='store_true')
+    parser.add_argument("--no-spec", help="No special chars in the generated password", default=False, action='store_true')
+    parser.add_argument("--no-quot", help="No quotation marks in the generated password", default=False, action='store_true')
+    parser.add_argument("--no-space", help="No space in the generated password", default=False, action='store_true')
     parser.add_argument("-k", "--key", help="Change the stored encryption key and re-encrypt the password file", action='store_true')
     parser.add_argument("-p", "--print", help="Print the password file", action='store_true')
     parser.add_argument("-l", "--legacy", help="Legacy mode (use xdotool instead of python3-xdo)", action='store_true')
