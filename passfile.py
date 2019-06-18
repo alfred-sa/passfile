@@ -50,6 +50,10 @@ class PassfileNotFound(Exception):
     pass
 
 
+class BadPassfile(Exception):
+    pass
+
+
 def ensure_utf8(utf8_args):
     if isinstance(utf8_args, str):
         utf8_args = [utf8_args]
@@ -86,8 +90,6 @@ class SecurePassfileCrypto():
         self.metadata_format = 'i8s'
         self.metadata_size = struct.calcsize(self.metadata_format)
         self.metadata_version = 1
-        self.encrypt = functools.partial(self._crypt, 'enc')
-        self.decrypt = functools.partial(self._crypt, 'dec')
 
     def _renew_iv(self):
         self.iv = os.urandom(8)
@@ -126,20 +128,25 @@ class SecurePassfileCrypto():
 
         return res
 
+    encrypt = functools.partialmethod(_crypt, 'enc')
+    decrypt = functools.partialmethod(_crypt, 'dec')
+
 
 class SecurePassfile():
     def __init__(self, path):
         self.path = os.path.expanduser(path)
         path_sum = CryptoSum.new(data=path.encode('utf8'), digest_bytes=32)
         self.crypto = SecurePassfileCrypto(path_sum.hexdigest())
+        self.content = self._get_passfile_content()
+        try:
+            self.passwords = yaml.safe_load(self.content)
+        except yaml.scanner.ScannerError as e:
+            raise BadPassfile("Bad format: \n\t{}".format(e))
 
-    def __enter__(self):
-        return self.get_passfile_contents()
+    def __str__(self):
+        return self.content.decode('utf8')
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
-
-    def get_passfile_contents(self):
+    def _get_passfile_content(self):
         try:
             with open(self.path, 'rb') as f:
                 metadata = f.read(self.crypto.metadata_size + 1)
@@ -151,10 +158,13 @@ class SecurePassfile():
 
     @ensure_utf8('decrypted_passfile')
     def create(self, decrypted_passfile, reset_key=True):
-        try:
-            yaml.load(decrypted_passfile)
-        except yaml.scanner.ScannerError as e:
-            print("Bad format: \n\t{}".format(e))
+        if isinstance(decrypted_passfile, dict):
+            decrypted_passfile = yaml.safe_dump(decrypted_passfile)
+        else:
+            try:
+                yaml.safe_load(decrypted_passfile)
+            except yaml.scanner.ScannerError as e:
+                print("Bad format: \n\t{}".format(e))
 
         if reset_key:
             self.crypto.reset_key()
@@ -164,26 +174,46 @@ class SecurePassfile():
             f.write(b'\n')
             f.write(encrypted_passfile)
 
-    def edit(self):
+    def renew_key(self):
+        self.create(self.content)
+
+    def edit(self, name=None):
         temp_file_handle, temp_file_name = tempfile.mkstemp()
         try:
             os.close(temp_file_handle)
-            decrypted_passfile = self.get_passfile_contents()
-            if decrypted_passfile:
+            if name:
+                if name in self.passwords:
+                    decrypted_passfile = yaml.safe_dump({name: self.passwords[name]})
+                else:
+                    decrypted_passfile = "{}:\n".format(name)
+            else:
+                decrypted_passfile = self.content
+
+            @ensure_utf8('decrypted_passfile')
+            def prepare_tmp_file(decrypted_passfile):
                 with open(temp_file_name, 'wb') as f:
                     f.write(decrypted_passfile)
+            prepare_tmp_file(decrypted_passfile)
 
             os.system('edit text/plain:{}'.format(temp_file_name))
 
             with open(temp_file_name, 'rb') as f:
                 new_decrypted_passfile = f.read()
-                self.create(new_decrypted_passfile, reset_key=False)
+
+            try:
+                new_passwords = yaml.safe_load(new_decrypted_passfile)
+            except yaml.scanner.ScannerError as e:
+                raise BadPassfile("Bad format: \n\t{}".format(e))
+
+            self.passwords.update(new_passwords)
+            new_decrypted_passfile = yaml.safe_dump(self.passwords)
+            self.create(new_decrypted_passfile, reset_key=False)
         finally:
             os.system("shred -n 3 -z -u {}".format(temp_file_name))
 
 
 class DoType():
-    def __init__(self, passfile, legacy_mode=False):
+    def __init__(self, passwords, legacy_mode=False):
         if not have_xdo or legacy_mode:
             self.legacy = True
             self.type = self._type_legacy
@@ -194,10 +224,8 @@ class DoType():
             self.window = self.xdo.get_active_window()
             self.type = self._type
             self.key = self._key
-        try:
-            self.passwords = yaml.load(passfile)
-        except AttributeError:
-            raise PassfileNotFound()
+
+        self.passwords = passwords
         self.delay = 0
 
     def __setattr__(self, attr, val):
@@ -269,28 +297,29 @@ def main(args):
     passfile = SecurePassfile(args.file)
 
     try:
-        if args.init:
-            if args.init_file:
-                passfile.create(args.init_file.read())
-            else:
-                passfile.create('')
-        if args.edit:
-            passfile.edit()
         if args.generate:
             password = generate_password(args)
             print(password)
             #do = DoType("generated: '{}'".format(password), args.legacy)
             #do.execute('generated')
-        if args.name:
-            with passfile as f:
-                do = DoType(f, args.legacy)
-                do.execute(args.name)
-        if args.key:
-            with passfile as f:
-                passfile.create(f.decode('utf-8'))
-        if args.print:
-            with passfile as f:
-                print(f.decode('utf-8'))
+        elif args.init:
+            if args.init_file:
+                passfile.create(args.init_file.read())
+            else:
+                passfile.create('')
+        elif args.edit:
+            passfile.edit(name=args.name)
+        elif args.print:
+            if args.name:
+                print(yaml.safe_dump({args.name: passfile.passwords[args.name]}))
+            else:
+                print(passfile)
+        elif args.name:
+            do = DoType(passfile.passwords, args.legacy)
+            do.execute(args.name)
+        elif args.key:
+            passfile.renew_key()
+
     except EncryptionKeyNotFound:
         print('No encryption key found, please recreate the pass file with --init option')
         sys.exit(1)
