@@ -159,7 +159,7 @@ class SecurePassfile():
     @ensure_utf8('decrypted_passfile')
     def create(self, decrypted_passfile, reset_key=True):
         if isinstance(decrypted_passfile, dict):
-            decrypted_passfile = yaml.safe_dump(decrypted_passfile)
+            decrypted_passfile = yaml.safe_dump(decrypted_passfile, default_flow_style=False)
         else:
             try:
                 yaml.safe_load(decrypted_passfile)
@@ -183,7 +183,7 @@ class SecurePassfile():
             os.close(temp_file_handle)
             if name:
                 if name in self.passwords:
-                    decrypted_passfile = yaml.safe_dump({name: self.passwords[name]})
+                    decrypted_passfile = yaml.safe_dump({name: self.passwords[name]}, default_flow_style=False)
                 else:
                     decrypted_passfile = "{}:\n".format(name)
             else:
@@ -206,7 +206,7 @@ class SecurePassfile():
                 raise BadPassfile("Bad format: \n\t{}".format(e))
 
             self.passwords.update(new_passwords)
-            new_decrypted_passfile = yaml.safe_dump(self.passwords)
+            new_decrypted_passfile = yaml.safe_dump(self.passwords, default_flow_style=False)
             self.create(new_decrypted_passfile, reset_key=False)
         finally:
             os.system("shred -n 3 -z -u {}".format(temp_file_name))
@@ -311,7 +311,7 @@ def main(args):
             passfile.edit(name=args.name)
         elif args.print:
             if args.name:
-                print(yaml.safe_dump({args.name: passfile.passwords[args.name]}))
+                print(yaml.safe_dump({args.name: passfile.passwords[args.name]}, default_flow_style=False))
             else:
                 print(passfile)
         elif args.name:
