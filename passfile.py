@@ -215,7 +215,10 @@ class SecurePassfile():
             new_decrypted_passfile = yaml.safe_dump(self.passwords, default_flow_style=False)
             self.create(new_decrypted_passfile, reset_key=False)
         finally:
-            os.system("shred -n 3 -z -u {}".format(temp_file_name))
+            if shutil.which('shred'):
+                os.system("shred -n 3 -z -u {}".format(temp_file_name))
+            else:
+                os.remove(temp_file_name)
 
 
 class DoType():
