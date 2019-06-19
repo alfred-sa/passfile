@@ -23,6 +23,7 @@ import time
 import keyring
 import string
 import base64
+import shutil
 
 from Cryptodome.Cipher import ChaCha20 as CryptoAlgo
 from Cryptodome.Protocol import KDF as CryptoKdf
@@ -195,7 +196,12 @@ class SecurePassfile():
                     f.write(decrypted_passfile)
             prepare_tmp_file(decrypted_passfile)
 
-            os.system('edit text/plain:{}'.format(temp_file_name))
+            if shutil.which('edit'):
+                os.system('edit text/plain:{}'.format(temp_file_name))
+            elif 'EDITOR' in os.environ:
+                os.system('$EDITOR {}'.format(temp_file_name))
+            else:
+                os.system('vi {}'.format(temp_file_name))
 
             with open(temp_file_name, 'rb') as f:
                 new_decrypted_passfile = f.read()
