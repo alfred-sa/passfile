@@ -137,7 +137,7 @@ class SecurePassfile():
         self.path = os.path.expanduser(path)
         path_sum = CryptoSum.new(data=path.encode('utf8'), digest_bytes=32)
         self.crypto = SecurePassfileCrypto(path_sum.hexdigest())
-        self.content = self._get_passfile_content() or ''
+        self.content = self._get_passfile_content() or '{}'
         try:
             self.passwords = yaml.safe_load(self.content)
         except yaml.scanner.ScannerError as e:
