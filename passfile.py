@@ -236,6 +236,7 @@ class DoType():
 
         self.passwords = passwords
         self.delay = 0
+        self.key('ctrl')  # There is a "bug" in xcb (X11 client lib), the keymap is updated only after a first stoke https://bugs.freedesktop.org/show_bug.cgi?id=93701#c2
 
     def __setattr__(self, attr, val):
         if attr == 'delay':
