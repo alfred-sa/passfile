@@ -289,10 +289,10 @@ def generate_password(args):
     password = []
     tr, chars_table = {}, string.printable[:-5]  # we remove \t, \n, \r, \v, \f
 
-    if args.no_quot:
-        tr.update(str.maketrans('', '', "'\"`"))
-    elif args.no_spec:
+    if args.no_spec:
         tr.update(str.maketrans('', '', string.punctuation))
+    elif args.no_quot:
+        tr.update(str.maketrans('', '', "'\"`"))
     if args.no_space:
         tr.update(str.maketrans('', '', ' '))
 
