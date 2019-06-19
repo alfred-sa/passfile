@@ -2,3 +2,4 @@ pycryptodomex>=3.6.1
 PyYAML>=3.13
 keyring>=17.1.1
 python-libxdo>=0.1.2a1
+chardet>=3.0.4
