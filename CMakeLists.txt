@@ -25,6 +25,10 @@ SET(CPACK_DEBIAN_PACKAGE_DEPENDS "coreutils, python3, python3-pip, libxdo3, libx
 file(GLOB DEBIAN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/debian/*)
 SET(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA ${DEBIAN_FILES})
 
+set(CPACK_FREEBSD_PACKAGE_LICENSE "GPLv3")
+set(CPACK_FREEBSD_PACKAGE_MAINTAINER "alfred@huji.fr")
+set(CPACK_FREEBSD_PACKAGE_DEPS "python3, py3-pip, xdotool, py3-keyring, py3-yaml, py3-chardet")
+
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/passfile.py
 	DESTINATION /usr/local/bin/
 	RENAME pass

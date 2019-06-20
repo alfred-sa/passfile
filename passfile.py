@@ -4,10 +4,10 @@
 
 # INSTALL via pip3:
 # apt install coreutils python3 python3-pip libxdo3 libx11-6
-# pip3 install pycryptodome PyYAML python-libxdo keyring
+# pip3 install pycryptodomex PyYAML python-libxdo keyring chardet
 
 # INSTALL via packages only:
-# apt install coreutils python3 python3-pip libxdo3 python3-pycryptodome python3-yaml python3-keyring
+# apt install coreutils python3 python3-pip libxdo3 python3-pycryptodome python3-yaml python3-keyring python3-chardet
 # pip3 install -U python-libxdo
 
 import sys
@@ -236,7 +236,7 @@ class DoType():
 
         self.passwords = passwords
         self.delay = 0
-        self.key('ctrl')  # There is a "bug" in xcb (X11 client lib), the keymap is updated only after a first stoke https://bugs.freedesktop.org/show_bug.cgi?id=93701#c2
+        self.key('ctrl')  # There is a "bug" in xcb (X11 client lib), the keymap is updated only after a first stroke https://bugs.freedesktop.org/show_bug.cgi?id=93701#c2
 
     def __setattr__(self, attr, val):
         if attr == 'delay':

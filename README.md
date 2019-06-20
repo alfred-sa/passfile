@@ -71,5 +71,16 @@ You can generated a Debian package:
 # mkdir build
 # cd build
 # cmake .. && cpack
-# apt install ./passfile_1.2_amd64.deb
-```
+# apt install ./passfile_*.deb
+
+## BSD package
+You can generated a BSD package:
+
+```bash
+# git clone https://github.com/whuji/passfile.git
+# cd passfile
+# mkdir build
+# cd build
+# cmake .. && cpack -G PKG
+# pkg_add  ./passfile_*.pkg
+# pip3 install pycryptodomex
