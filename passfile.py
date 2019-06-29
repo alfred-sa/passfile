@@ -178,12 +178,14 @@ class SecurePassfile():
     def renew_key(self):
         self.create(self.content)
 
-    def edit(self, name=None):
+    def edit(self, name=None, value=None):
         temp_file_handle, temp_file_name = tempfile.mkstemp()
         try:
             os.close(temp_file_handle)
             if name:
-                if name in self.passwords:
+                if value:
+                    decrypted_passfile = yaml.safe_dump({name: value}, default_flow_style=False)
+                elif name in self.passwords:
                     decrypted_passfile = yaml.safe_dump({name: self.passwords[name]}, default_flow_style=False)
                 else:
                     decrypted_passfile = "{}:\n".format(name)
@@ -309,7 +311,10 @@ def main(args):
     try:
         if args.generate:
             password = generate_password(args)
-            print(password)
+            if args.edit and args.name:
+                passfile.edit(name=args.name, value=password)
+            else:
+                print(password)
             #do = DoType("generated: '{}'".format(password), args.legacy)
             #do.execute('generated')
         elif args.init:
