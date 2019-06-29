@@ -20,7 +20,7 @@ set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
 SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Passfile")
 SET(CPACK_PACKAGE_DESCRIPTION_SHORT "Passfile")
 SET(CPACK_DEBIAN_PACKAGE_SECTION "admin")
-SET(CPACK_DEBIAN_PACKAGE_DEPENDS "coreutils, python3, python3-pip, libxdo3, libx11-6, python3-pycryptodome, python3-yaml, python3-keyring")
+SET(CPACK_DEBIAN_PACKAGE_DEPENDS "coreutils, python3 (>=3.7), python3-pip, libxdo3, libx11-6, python3-pycryptodome, python3-yaml, python3-keyring")
 
 file(GLOB DEBIAN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/debian/*)
 SET(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA ${DEBIAN_FILES})
