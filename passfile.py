@@ -24,6 +24,7 @@ import keyring
 import string
 import base64
 import shutil
+import re
 
 from Cryptodome.Cipher import ChaCha20 as CryptoAlgo
 from Cryptodome.Protocol import KDF as CryptoKdf
@@ -55,7 +56,7 @@ class BadPassfile(Exception):
     pass
 
 
-def ensure_utf8(utf8_args):
+def ensure_utf8(utf8_args, strict=True):
     if isinstance(utf8_args, str):
         utf8_args = [utf8_args]
 
@@ -75,7 +76,10 @@ def ensure_utf8(utf8_args):
                         else:
                             new_kwargs[k] = v
                     else:
-                        raise TypeError("Please, specify only text type arguments for ensure_utf8")
+                        if strict:
+                            raise TypeError("Please, specify only text type arguments for ensure_utf8")
+                        else:
+                            new_kwargs[k] = v
                 else:
                     new_kwargs[k] = v
             return f(**new_kwargs)
@@ -142,7 +146,7 @@ class SecurePassfile():
         try:
             self.passwords = yaml.safe_load(self.content)
         except yaml.scanner.ScannerError as e:
-            raise BadPassfile("Bad format: \n\t{}".format(e))
+            raise BadPassfile(f'Bad format: \n\t{e}')
 
     def __str__(self):
         return self.content.decode('utf8')
@@ -157,15 +161,15 @@ class SecurePassfile():
         except FileNotFoundError:
             return None
 
-    @ensure_utf8('decrypted_passfile')
+    @ensure_utf8('decrypted_passfile', strict=False)
     def create(self, decrypted_passfile, reset_key=True):
         if isinstance(decrypted_passfile, dict):
-            decrypted_passfile = yaml.safe_dump(decrypted_passfile, default_flow_style=False)
+            decrypted_passfile = yaml.safe_dump(decrypted_passfile, default_flow_style=False, encoding='utf8')
         else:
             try:
                 yaml.safe_load(decrypted_passfile)
             except yaml.scanner.ScannerError as e:
-                print("Bad format: \n\t{}".format(e))
+                print(f'Bad format: \n\t{e}')
 
         if reset_key:
             self.crypto.reset_key()
@@ -176,21 +180,78 @@ class SecurePassfile():
             f.write(encrypted_passfile)
 
     def renew_key(self):
-        self.create(self.content)
+        self.create(self.passwords)
 
-    def edit(self, name=None, value=None):
+    def search_pass(self, regex):
+        r = re.compile(f'^{regex}$')
+        for key in self.passwords.keys():
+            if r.search(key):
+                yield key
+
+    def print(self, name, regex=False):
+        if name:
+            if regex:
+                res = {}
+                for key in self.search_pass(name):
+                    res[key] = self.passwords[key]
+            elif name in self.passwords:
+                res = {name: self.passwords[name]}
+            else:
+                print(f'{name} not found')
+                res = None
+            if res:
+                print(yaml.safe_dump(res, default_flow_style=False))
+        else:
+            print(self)
+
+    def delete(self, name, regex=False):
+        if name:
+            if regex:
+                res = list(self.search_pass(name))
+            elif name in self.passwords:
+                res = [name]
+            else:
+                print(f'{name} not found')
+                res = []
+
+            for k in res:
+                confirm = input(f'{k} will be permanently deleted from passfile, confirm ? [y/N] ')
+                if confirm == 'y':
+                    del self.passwords[k]
+                    print(f'{k} deleted')
+                else:
+                    print(f'canceled.')
+
+            self.create(self.passwords, reset_key=False)
+
+    def edit(self, name=None, generate=None, regex=False):
         temp_file_handle, temp_file_name = tempfile.mkstemp()
         try:
             os.close(temp_file_handle)
             if name:
-                if value:
-                    decrypted_passfile = yaml.safe_dump({name: value}, default_flow_style=False)
+                if regex:
+                    res = {}
+                    for k in self.search_pass(name):
+                        if generate:
+                            res[k] = generate()
+                        else:
+                            res[k] = self.passwords[k]
+                    if len(res) == 0:
+                        print(f'{name} not found')
+                        return
+                elif generate:
+                    res = {name: generate()}
                 elif name in self.passwords:
-                    decrypted_passfile = yaml.safe_dump({name: self.passwords[name]}, default_flow_style=False)
+                    res = {name: self.passwords[name]}
                 else:
-                    decrypted_passfile = "{}:\n".format(name)
+                    res = f'{name}:'
             else:
-                decrypted_passfile = self.content
+                res = self.content
+
+            if isinstance(res, dict):
+                decrypted_passfile = yaml.safe_dump(res, default_flow_style=False, encoding='utf8')
+            else:
+                decrypted_passfile = res
 
             @ensure_utf8('decrypted_passfile')
             def prepare_tmp_file(decrypted_passfile):
@@ -199,11 +260,11 @@ class SecurePassfile():
             prepare_tmp_file(decrypted_passfile)
 
             if shutil.which('edit'):
-                os.system('edit text/plain:{}'.format(temp_file_name))
+                os.system(f'edit text/plain:{temp_file_name}')
             elif 'EDITOR' in os.environ:
-                os.system('$EDITOR {}'.format(temp_file_name))
+                os.system(f'$EDITOR {temp_file_name}')
             else:
-                os.system('vi {}'.format(temp_file_name))
+                os.system(f'vi {temp_file_name}')
 
             with open(temp_file_name, 'rb') as f:
                 new_decrypted_passfile = f.read()
@@ -211,20 +272,20 @@ class SecurePassfile():
             try:
                 new_passwords = yaml.safe_load(new_decrypted_passfile)
             except yaml.scanner.ScannerError as e:
-                raise BadPassfile("Bad format: \n\t{}".format(e))
+                raise BadPassfile(f'Bad format: \n\t{e}')
 
             self.passwords.update(new_passwords)
-            new_decrypted_passfile = yaml.safe_dump(self.passwords, default_flow_style=False)
-            self.create(new_decrypted_passfile, reset_key=False)
+            self.create(self.passwords, reset_key=False)
         finally:
             if shutil.which('shred'):
-                os.system("shred -n 3 -z -u {}".format(temp_file_name))
+                os.system(f'shred -n 3 -z -u {temp_file_name}')
             else:
                 os.remove(temp_file_name)
 
 
 class DoType():
-    def __init__(self, passwords, legacy_mode=False):
+    def __init__(self, passfile, legacy_mode=False):
+        assert isinstance(passfile, SecurePassfile), ''
         if not have_xdo or legacy_mode:
             self.legacy = True
             self.type = self._type_legacy
@@ -236,7 +297,7 @@ class DoType():
             self.type = self._type
             self.key = self._key
 
-        self.passwords = passwords
+        self.passfile = passfile
         self.delay = 0
         self.key('ctrl')  # There is a "bug" in xcb (X11 client lib), the keymap is updated only after a first stroke https://bugs.freedesktop.org/show_bug.cgi?id=93701#c2
 
@@ -258,14 +319,22 @@ class DoType():
         self.xdo.send_keysequence_window(self.window, key, delay=self.delay * 1000)
 
     def _type_legacy(self, text):
-        os.system("xdotool type --delay {} '{}'".format(self.delay, text))
+        os.system(f"xdotool type --delay {self.delay} '{text}'")
 
     def _key_legacy(self, key):
-        os.system("xdotool key --delay {} {};".format(self.delay, key))
+        os.system(f"xdotool key --delay {self.delay} {key};")
 
-    def execute(self, name):
-        if self.passwords is not None and name in self.passwords:
-            for action in self.passwords[name]:
+    def execute(self, name, regex=False):
+        if regex:
+            res = list(self.passfile.search_pass(name))
+        elif name in self.passfile.passwords:
+            res = [name]
+        else:
+            res = []
+            print(f'{name} not found')
+
+        for n in res:
+            for action in self.passfile.passwords[n]:
                 if isinstance(action, str):
                     self.type(action)
                 elif isinstance(action, dict):
@@ -279,11 +348,9 @@ class DoType():
                         elif k == 'delay':
                             self.delay = int(v)
                         else:
-                            raise ValueError('Unknown action {}'.format(k))
+                            raise ValueError(f'Unknown action {k}')
                 else:
-                    raise TypeError('Unknown action type {}'.format(type(action)))
-        else:
-            print('{} not found'.format(name))
+                    raise TypeError(f'Unknown action type {action}')
 
 
 def generate_password(args):
@@ -310,28 +377,26 @@ def main(args):
 
     try:
         if args.generate:
-            password = generate_password(args)
             if args.edit and args.name:
-                passfile.edit(name=args.name, value=password)
+                passfile.edit(name=args.name, generate=functools.partial(generate_password, args), regex=args.regex)
             else:
+                password = generate_password(args)
                 print(password)
-            #do = DoType("generated: '{}'".format(password), args.legacy)
-            #do.execute('generated')
         elif args.init:
             if args.init_file:
                 passfile.create(args.init_file.read())
             else:
                 passfile.create('')
         elif args.edit:
-            passfile.edit(name=args.name)
+            passfile.edit(name=args.name, regex=args.regex)
         elif args.print:
+            passfile.print(args.name, regex=args.regex)
+        elif args.delete:
             if args.name:
-                print(yaml.safe_dump({args.name: passfile.passwords[args.name]}, default_flow_style=False))
-            else:
-                print(passfile)
+                passfile.delete(args.name, regex=args.regex)
         elif args.name:
-            do = DoType(passfile.passwords, args.legacy)
-            do.execute(args.name)
+            do = DoType(passfile, args.legacy)
+            do.execute(args.name, regex=args.regex)
         elif args.key:
             passfile.renew_key()
 
@@ -356,6 +421,8 @@ if __name__ == '__main__':
     parser.add_argument("--no-space", help="No space in the generated password", default=False, action='store_true')
     parser.add_argument("-k", "--key", help="Change the stored encryption key and re-encrypt the password file", action='store_true')
     parser.add_argument("-p", "--print", help="Print the password file", action='store_true')
+    parser.add_argument("-R", "--regex", help="Regex mode", action='store_true', default=False)
+    parser.add_argument("-d", "--delete", help="Delete from password file", action='store_true')
     parser.add_argument("-l", "--legacy", help="Legacy mode (use xdotool instead of python3-xdo)", action='store_true')
     parser.add_argument("name", nargs='?', help="Name of the password to type")
     args = parser.parse_args()
