@@ -188,7 +188,7 @@ class SecurePassfile():
             if r.search(key):
                 yield key
 
-    def print(self, name, regex=False):
+    def print(self, name, regex=False, print_pass=False):
         if name:
             if regex:
                 res = {}
@@ -200,7 +200,11 @@ class SecurePassfile():
                 print(f'{name} not found')
                 res = None
             if res:
-                print(yaml.safe_dump(res, default_flow_style=False))
+                if print_pass:
+                    print(yaml.safe_dump(res, default_flow_style=False))
+                else:
+                    for i in res.keys():
+                        print(i)
         else:
             print(self)
 
@@ -373,9 +377,9 @@ def generate_password(args):
 
 
 def main(args):
-    passfile = SecurePassfile(args.file)
-
     try:
+        passfile = SecurePassfile(args.file)
+
         if args.generate:
             if args.edit and args.name:
                 passfile.edit(name=args.name, generate=functools.partial(generate_password, args), regex=args.regex)
@@ -389,8 +393,10 @@ def main(args):
                 passfile.create('')
         elif args.edit:
             passfile.edit(name=args.name, regex=args.regex)
-        elif args.print:
+        elif args.search:
             passfile.print(args.name, regex=args.regex)
+        elif args.print:
+            passfile.print(args.name, regex=args.regex, print_pass=True)
         elif args.delete:
             if args.name:
                 passfile.delete(args.name, regex=args.regex)
@@ -405,6 +411,9 @@ def main(args):
         sys.exit(1)
     except PassfileNotFound:
         print('The password file is not found, please create it with --init option')
+        sys.exit(1)
+    except BadPassfile as e:
+        print(f'Bad format for the password file ({e})')
         sys.exit(1)
 
 
@@ -421,6 +430,7 @@ if __name__ == '__main__':
     parser.add_argument("--no-space", help="No space in the generated password", default=False, action='store_true')
     parser.add_argument("-k", "--key", help="Change the stored encryption key and re-encrypt the password file", action='store_true')
     parser.add_argument("-p", "--print", help="Print the password file", action='store_true')
+    parser.add_argument("-s", "--search", help="Search for keys in the password file", action='store_true')
     parser.add_argument("-R", "--regex", help="Regex mode", action='store_true', default=False)
     parser.add_argument("-d", "--delete", help="Delete from password file", action='store_true')
     parser.add_argument("-l", "--legacy", help="Legacy mode (use xdotool instead of python3-xdo)", action='store_true')
