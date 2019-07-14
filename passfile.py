@@ -219,7 +219,10 @@ class SecurePassfile():
                     for i in res.keys():
                         print(i)
         else:
-            print(self)
+            if print_pass:
+                print(self)
+            else:
+                print('\n'.join(self.passwords.keys()))
 
     def delete(self, name, regex=False):
         if name:
