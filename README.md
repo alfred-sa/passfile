@@ -1,6 +1,12 @@
 # Passfile
 Password manager, form filling software.
 
+## Known issues
+
+If the typed password (./passfile.py <pass>) is different to the printed password (./passfile.py -p <pass>), then you may be have the known bug on xcb https://gitlab.freedesktop.org/xorg/xserver/issues/257
+Please try to set your X11 keyboard map with the setxkbmap command.
+You can make it permament by adding the setxkbmap command to your .profile or .bashrc, or by adding the KB mapping in your Xorg.conf.
+
 ## Requirements
 
 ### System requirements
