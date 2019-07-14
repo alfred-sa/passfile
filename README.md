@@ -4,12 +4,13 @@ Password manager, form filling software.
 ## Requirements
 
 ### System requirements
-- Linux
+- Linux or BSD
 - Python 3.7
 - coreutils
 - pip3
 - libxdo3
 - libx11-6
+- a keyring supported by the python module keyring
 
 ### Python requirements
 - pycryptodome
@@ -62,7 +63,9 @@ test:
 The passfile is encrypted in ChaCha20.
 The encryption key is salted, derived with scrypt and stored in a password locked keyring supported by the python keyring module.
 
-## Debian package
+## Generating packages
+
+### Debian package
 You can generated a Debian package:
 
 ```bash
@@ -73,14 +76,14 @@ You can generated a Debian package:
 # cmake .. && cpack
 # apt install ./passfile_*.deb
 
-## Arch package
+### Arch package
 ```bash
 # wget https://github.com/whuji/passfile.git/PKGBUILD
 # makepkg -c
 # pacman -U passfile-git.*.tar.xz
 
-## BSD package
-# You can generate a BSD package:
+### BSD package
+You can generate a BSD package:
 
 ```bash
 # pip3 install pycryptodomex
