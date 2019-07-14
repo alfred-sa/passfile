@@ -322,7 +322,7 @@ class DoType():
 
         self.passfile = passfile
         self.delay = 0
-        self.key('ctrl')  # There is a "bug" in xcb (X11 client lib), the keymap is updated only after a first stroke https://bugs.freedesktop.org/show_bug.cgi?id=93701#c2
+        self.key('ctrl')  # There is a "bug" in xcb (X11 client lib), the keymap is updated only after a first stroke https://bugs.freedesktop.org/show_bug.cgi?id=93701#c2 / https://gitlab.freedesktop.org/xorg/xserver/issues/257
 
     def __setattr__(self, attr, val):
         if attr == 'delay':

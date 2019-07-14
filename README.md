@@ -79,7 +79,7 @@ You can generated a Debian package:
 
 ### Arch package
 ```bash
-# wget https://github.com/whuji/passfile.git/PKGBUILD
+# wget https://raw.githubusercontent.com/whuji/passfile/master/PKGBUILD
 # makepkg -c
 # pacman -U passfile-git.*.tar.xz
 ```
