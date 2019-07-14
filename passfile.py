@@ -316,7 +316,6 @@ class DoType():
         else:
             self.legacy = False
             self.xdo = xdo.Xdo()
-            self.window = self.xdo.get_active_window()
             self.type = self._type
             self.key = self._key
 
@@ -335,11 +334,11 @@ class DoType():
 
     @ensure_utf8('text')
     def _type(self, text):
-        self.xdo.enter_text_window(self.window, text, delay=self.delay * 1000)
+        self.xdo.enter_text_window(xdo.CURRENTWINDOW, text, delay=self.delay * 1000)
 
     @ensure_utf8('key')
     def _key(self, key):
-        self.xdo.send_keysequence_window(self.window, key, delay=self.delay * 1000)
+        self.xdo.send_keysequence_window(xdo.CURRENTWINDOW, key, delay=self.delay * 1000)
 
     def _type_legacy(self, text):
         os.system(f"xdotool type --delay {self.delay} '{text}'")
