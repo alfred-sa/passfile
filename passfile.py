@@ -108,9 +108,13 @@ class SecurePassfileCrypto():
         keyring.set_password(self.ns, getpass.getuser(), key)
 
     def get_metadata(self):
+        if self.iv is None:
+            self._renew_iv()
         return struct.pack(self.metadata_format, self.metadata_version, self.iv)
 
     def set_metadata(self, metadata):
+        if self.iv is None:
+            self._renew_iv()
         self.metadata_version, self.iv = struct.unpack(self.metadata_format, metadata[0:self.metadata_size])
 
     def _crypt(self, mode, data):
@@ -142,14 +146,20 @@ class SecurePassfile():
         self.path = os.path.expanduser(path)
         path_sum = CryptoSum.new(data=path.encode('utf8'), digest_bytes=32)
         self.crypto = SecurePassfileCrypto(path_sum.hexdigest())
-        self.content = self._get_passfile_content() or '{}'
-        try:
-            self.passwords = yaml.safe_load(self.content)
-        except yaml.scanner.ScannerError as e:
-            raise BadPassfile(f'Bad format: \n\t{e}')
+        self.content = self._get_passfile_content() or None
+        if self.content is not None:
+            try:
+                self.passwords = yaml.safe_load(self.content)
+            except yaml.scanner.ScannerError as e:
+                raise BadPassfile(f'Bad format: \n\t{e}')
+        else:
+            self.passwords = {}
 
     def __str__(self):
-        return self.content.decode('utf8')
+        if self.content is None:
+            return ''
+        else:
+            return self.content.decode('utf8')
 
     def _get_passfile_content(self):
         try:
@@ -163,21 +173,24 @@ class SecurePassfile():
 
     @ensure_utf8('decrypted_passfile', strict=False)
     def create(self, decrypted_passfile, reset_key=True):
-        if isinstance(decrypted_passfile, dict):
-            decrypted_passfile = yaml.safe_dump(decrypted_passfile, default_flow_style=False, encoding='utf8')
-        else:
-            try:
-                yaml.safe_load(decrypted_passfile)
-            except yaml.scanner.ScannerError as e:
-                print(f'Bad format: \n\t{e}')
+        if decrypted_passfile:
+            if isinstance(decrypted_passfile, dict):
+                decrypted_passfile = yaml.safe_dump(decrypted_passfile, default_flow_style=False, encoding='utf8')
+            else:
+                try:
+                    yaml.safe_load(decrypted_passfile)
+                except yaml.scanner.ScannerError as e:
+                    print(f'Bad format: \n\t{e}')
 
         if reset_key:
             self.crypto.reset_key()
-        encrypted_passfile = self.crypto.encrypt(decrypted_passfile)
+        if decrypted_passfile:
+            encrypted_passfile = self.crypto.encrypt(decrypted_passfile)
         with open(self.path, "wb") as f:
             f.write(self.crypto.get_metadata())
             f.write(b'\n')
-            f.write(encrypted_passfile)
+            if decrypted_passfile:
+                f.write(encrypted_passfile)
 
     def renew_key(self):
         self.create(self.passwords)
@@ -250,7 +263,10 @@ class SecurePassfile():
                 else:
                     res = f'{name}:'
             else:
-                res = self.content
+                if self.content is not None:
+                    res = self.content
+                else:
+                    res = ''
 
             if isinstance(res, dict):
                 decrypted_passfile = yaml.safe_dump(res, default_flow_style=False, encoding='utf8')
@@ -263,8 +279,8 @@ class SecurePassfile():
                     f.write(decrypted_passfile)
             prepare_tmp_file(decrypted_passfile)
 
-            if shutil.which('edit'):
-                os.system(f'edit text/plain:{temp_file_name}')
+            if shutil.which('run-mailcap'):
+                os.system(f'run-mailcap --action=edit text/plain:{temp_file_name}')
             elif 'EDITOR' in os.environ:
                 os.system(f'$EDITOR {temp_file_name}')
             else:
@@ -278,8 +294,11 @@ class SecurePassfile():
             except yaml.scanner.ScannerError as e:
                 raise BadPassfile(f'Bad format: \n\t{e}')
 
-            self.passwords.update(new_passwords)
-            self.create(self.passwords, reset_key=False)
+            if isinstance(new_passwords, dict):
+                self.passwords.update(new_passwords)
+                self.create(self.passwords, reset_key=False)
+            else:
+                print('Bad format, should be a YaML dict')
         finally:
             if shutil.which('shred'):
                 os.system(f'shred -n 3 -z -u {temp_file_name}')
@@ -390,7 +409,7 @@ def main(args):
             if args.init_file:
                 passfile.create(args.init_file.read())
             else:
-                passfile.create('')
+                passfile.create(None)
         elif args.edit:
             passfile.edit(name=args.name, regex=args.regex)
         elif args.search:
