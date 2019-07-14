@@ -3,15 +3,18 @@
 pkgname=passfile-git
 pkgver=1.7
 pkgrel=1
-pkgdesc="world first ultimate secure password manager"
+pkgdesc="Password manager & form filling software."
 arch=('any')
 url="https://github.com/whuji/${pkgname%-git}.git"
 license=('GPL')
-depends=('python>=3.6.0'
+depends=('python>=3.7.0'
          'python-pycryptodomex>=3.6.1'
          'python-yaml>=3.13'
          'python-keyring>=17.1.1'
-         'python-chardet>=3.0.4')
+         'python-chardet>=3.0.4'
+         'coreutils'
+         'python-pip'
+         'libx11')
 checkdepends=()
 optdepends=('xdotool')
 provides=("${pkgname%-git}")
