@@ -75,12 +75,14 @@ You can generated a Debian package:
 # cd build
 # cmake .. && cpack
 # apt install ./passfile_*.deb
+```
 
 ### Arch package
 ```bash
 # wget https://github.com/whuji/passfile.git/PKGBUILD
 # makepkg -c
 # pacman -U passfile-git.*.tar.xz
+```
 
 ### BSD package
 You can generate a BSD package:
@@ -93,3 +95,4 @@ You can generate a BSD package:
 # cd build
 # cmake .. && cpack -G PKG
 # pkg_add  ./passfile_*.pkg
+```
