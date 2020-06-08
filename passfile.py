@@ -103,8 +103,8 @@ class SecurePassfileCrypto():
         user_key = getpass.getpass("Key: ")
         salt = os.urandom(8)
         key = CryptoKdf.scrypt(user_key, salt, 32, 262144, 8, 1)
-        key = base64.b85encode(key)  # https://github.com/jaraco/keyring/issues/388
         del user_key
+        key = base64.b85encode(key)  # https://github.com/jaraco/keyring/issues/388
         keyring.set_password(self.ns, getpass.getuser(), key)
 
     def get_metadata(self):
@@ -172,7 +172,7 @@ class SecurePassfile():
             return None
 
     @ensure_utf8('decrypted_passfile', strict=False)
-    def create(self, decrypted_passfile, reset_key=True):
+    def create(self, decrypted_passfile, reset_key=False):
         if decrypted_passfile:
             if isinstance(decrypted_passfile, dict):
                 decrypted_passfile = yaml.safe_dump(decrypted_passfile, default_flow_style=False, encoding='utf8')
@@ -193,7 +193,7 @@ class SecurePassfile():
                 f.write(encrypted_passfile)
 
     def renew_key(self):
-        self.create(self.passwords)
+        self.create(self.passwords, reset_key=True)
 
     def search_pass(self, regex):
         r = re.compile(f'^{regex}$')
@@ -242,7 +242,7 @@ class SecurePassfile():
                 else:
                     print(f'canceled.')
 
-            self.create(self.passwords, reset_key=False)
+            self.create(self.passwords)
 
     def edit(self, name=None, generate=None, regex=False):
         temp_file_handle, temp_file_name = tempfile.mkstemp()
@@ -299,7 +299,7 @@ class SecurePassfile():
 
             if isinstance(new_passwords, dict):
                 self.passwords.update(new_passwords)
-                self.create(self.passwords, reset_key=False)
+                self.create(self.passwords)
             else:
                 print('Bad format, should be a YaML dict')
         finally:
@@ -409,9 +409,9 @@ def main(args):
                 print(password)
         elif args.init:
             if args.init_file:
-                passfile.create(args.init_file.read())
+                passfile.create(args.init_file.read(), reset_key=True)
             else:
-                passfile.create(None)
+                passfile.create(None, reset_key=True)
         elif args.edit:
             passfile.edit(name=args.name, regex=args.regex)
         elif args.search:
